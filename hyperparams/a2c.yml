@@ -1,0 +1,18 @@
+ForexEnv-v0:
+  normalize: false
+  trade_time: 400
+  window_size: 5
+  n_envs: 4
+  n_timesteps: !!float 5e6
+  policy: 'MlpPolicy'
+  ent_coef: 0.0
+  max_grad_norm: 0.3
+  n_steps: 256
+  gae_lambda: 0.8
+  vf_coef: 0.35
+  gamma: 0.99
+  use_rms_prop: True
+  normalize_advantage: True
+  learning_rate: lin_7e-4
+  policy_kwargs: dict(activation_fn = th.nn.Tanh, net_arch = [64, dict(pi=[64, 64], vf=[64, 64])])
+  callback: [envs.env_callbacks.TensorboardCallback]
