@@ -1,7 +1,7 @@
 ForexEnv-v0:
   normalize: false
-  trade_time: 400
-  window_size: 5
+  trade_time: 2400
+  window_size: 24
   n_envs: 4
   n_timesteps: !!float 5e6
   policy: 'MlpPolicy'

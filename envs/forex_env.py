@@ -6,13 +6,14 @@ class ForexEnv(TradingEnv):
     def __init__(self, env_data, window_size = 5, env_type = "train", trade_time = None, reward_scale = 100, init_money=100):
         assert env_type == "train" or "eval" or "test"
         
-
+        # Data set 
         df = pd.read_csv(env_data)
         df.set_index('date', inplace=True)
         df_train = df.iloc[ 0 : int(df.shape[0]*0.7) ]
         df_eval  = df.iloc[ int(df.shape[0]*0.7) - window_size: int(df.shape[0]*0.9) ]
         df_test  = df.iloc[ int(df.shape[0]*0.9) - window_size: ]
 
+        # trade time
         if env_type == "train":
             df = df_train
         elif env_type == "eval":
@@ -22,9 +23,9 @@ class ForexEnv(TradingEnv):
             df = df_test
             trade_time = None
 
-        super().__init__(df, window_size, trade_time, reward_scale, init_money)
-        self.trade_fee = 0.0003  # unit
 
+        super().__init__(df, window_size, trade_time, reward_scale, init_money)
+        
 
     def _process_data(self):
         prices = self.df.loc[:, 'close'].to_numpy()
@@ -40,18 +41,17 @@ class ForexEnv(TradingEnv):
         realize_pl = 0
         current_price = self.prices[self._current_tick]
 
+        # Change pos
         if self.wallet.position != predict:
-            # Change pos
             if self.wallet.position == Positions.Long:
                 realize_pl +=  self.wallet.sell_all(current_price)
             elif self.wallet.position == Positions.Short:
                 realize_pl += -self.wallet.sell_all(current_price)
 
             self.wallet.position = self.wallet.change_pos(predict)
-            
         
+        # Adjust portfolio
         if predict != Positions.Sideways:         
-            # adjust portfolio
             n_add_contact = n_want_contract - self.wallet.n_contract  
             realize_pl += self.wallet.add_contract(current_price, n_add_contact)
 

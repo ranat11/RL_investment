@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+from pandas.plotting import scatter_matrix
+
 from matplotlib import pyplot as plt
 import mplfinance as mpf
 from finta import TA
@@ -7,14 +9,14 @@ from finta import TA
 # https://www.dukascopy.com/swiss/english/marketwatch/historical/ #UTC local
 # https://www.alphavantage.co/
 
-file_name = "EURUSDhours"
+file_name = "EURUSDdays"
 
 df = pd.read_csv(f'data/{file_name}.csv')
 df.columns = ['date','open','high','low','close','volume']
 
 # remove GMT 
-for i in range (len(df)):
-    df['date'].values[i] = df['date'].values[i][:-9]
+# for i in range (len(df)):
+#     df['date'].values[i] = df['date'].values[i][:-9]
     
 df['date'] = pd.to_datetime(df['date'], format='%d.%m.%Y %H:%M:%S.%f', infer_datetime_format=True)
 df.set_index('date', inplace=True)
@@ -56,8 +58,19 @@ df.to_csv(f'data/{file_name}_ti.csv')
 
 
 # ---------------------------------------------------------------------------- #
+#                                  Correlation                                 #
+# ---------------------------------------------------------------------------- #
+corr_matrix = df.corr()
+print(corr_matrix["close"].sort_values(ascending=False))
+
+attributes = ["close", "SMA4", "STOCHD120", "RSI30"]
+img = scatter_matrix(df[attributes], figsize=(12, 8))
+plt.show()
+# ---------------------------------------------------------------------------- #
 #                                   Normalize                                  #
 # ---------------------------------------------------------------------------- #
+print(df.describe())
+exit()
 # df = (df-df.min())/(df.max()-df.min())
 
 

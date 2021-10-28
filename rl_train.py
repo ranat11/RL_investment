@@ -30,7 +30,7 @@ def input_args():
     # parser.add_argument("-i", "--trained-agent", default="logs/models/a2c/ForexEnv-v0_5/ForexEnv-v0.zip", help="Path to a pretrained agent to continue training", type=str)
 
     # Save & tensorboard
-    parser.add_argument("--save-freq", default=-1, help="Save the model every n steps (if negative, no checkpoint)", type=int)
+    parser.add_argument("--save-freq", default=10000, help="Save the model every n steps (if negative, no checkpoint)", type=int)
     parser.add_argument("--save-replay-buffer", default=False, help="Save the replay buffer too (when applicable)", action="store_true")
     parser.add_argument("-f", "--log-folder", default="logs/models", help="Log folder", type=str)
     parser.add_argument("-tb", "--tensorboard-log", default="./logs/tb", help="Tensorboard log dir", type=str)

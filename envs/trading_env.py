@@ -23,9 +23,12 @@ class Positions(Enum):
 class Wallet(object):
     def __init__(self, init_money) -> None:
         self.avgprice = 0
-        self.leverage = 1
+        self.leverage = 10
         self.n_contract = 0
         self.position = Positions.Sideways
+
+        self.pip_unit = 1000
+        self.value_per_pip = 10 
 
         self.cash_balance = init_money
         self.total_balance = self.cash_balance
@@ -33,14 +36,22 @@ class Wallet(object):
         self.unrealized_pl = 0
         self.realized_pl = 0
 
+        self.trade_fee = 0.003
 
     def _update_wallet(self,current_price):
-        if self.position == Positions.Long:
-            self.unrealized_pl = (current_price - self.avgprice) * self.leverage * self.n_contract
-        elif self.position == Positions.Short:
-            self.unrealized_pl = (self.avgprice - current_price) * self.leverage * self.n_contract
+        if self.n_contract != 0:
+            spread = (current_price - self.avgprice) * self.pip_unit # pip unit
+            spread * self.value_per_pip
 
-        self.total_balance = self.cash_balance + self.unrealized_pl
+            if self.position == Positions.Long:
+                self.unrealized_pl = spread * self.leverage * self.n_contract
+            elif self.position == Positions.Short:
+                self.unrealized_pl = -spread * self.leverage * self.n_contract
+
+            self.total_balance = self.cash_balance + self.unrealized_pl
+        
+        else:
+            self.total_balance = self.cash_balance
     
     def sell_all(self, current_price):
         prev_pl = 0
@@ -63,15 +74,15 @@ class Wallet(object):
     def add_contract(self, current_price, n_add_contact):
         prev_pl = 0
 
+        # buy
         if n_add_contact > 0:
-            # buy
             self.avgprice = (self.avgprice*self.n_contract  + current_price*n_add_contact)/ (self.n_contract+n_add_contact)
             self.n_contract += n_add_contact
-            
+
             self._update_wallet(current_price)
 
+        # sell
         elif n_add_contact < 0:
-            # sell
             n_add_contact = abs(n_add_contact)
             if self.position == Positions.Long:
                 self.realized_pl = (current_price - self.avgprice) * n_add_contact
@@ -94,6 +105,18 @@ class Wallet(object):
 
         return self.position
 
+    def _realized_pl(self, n_contract, current_price):
+        spread = (current_price - self.avgprice) * self.pip_unit # pip unit
+        spread * self.value_per_pip
+
+        if self.position == Positions.Long:
+            unrealized_pl = spread * self.leverage * n_contract
+        elif self.position == Positions.Short:
+            unrealized_pl = -spread * self.leverage * n_contract
+
+        return unrealized_pl
+
+
 class TradingEnv(gym.Env):
 
     metadata = {'render.modes': ['human']}
@@ -105,6 +128,7 @@ class TradingEnv(gym.Env):
         self.df = df
         self.init_money = init_money
         self.window_size = window_size
+        self.trade_time = trade_time
         self.prices, self.signal_features = self._process_data()
         self.shape = (window_size, self.signal_features.shape[1])
 
@@ -113,13 +137,8 @@ class TradingEnv(gym.Env):
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=self.shape, dtype=np.float32)
         self.reward_scale = reward_scale
 
-        # episode
-        if trade_time == None:
-            self._start_tick = self.window_size
-            self._end_tick = len(self.prices) - 1
-        else:
-            self._start_tick = np.random.randint(self.window_size, self.df.shape[0]-trade_time)
-            self._end_tick = self._start_tick + trade_time
+        self._start_tick = None
+        self._end_tick = None
         self._done = None
         self._current_tick = None
 
@@ -127,24 +146,19 @@ class TradingEnv(gym.Env):
         self.total_reward = 0
         self.total_profit = 0
 
-        self._first_rendering = None
         self.history = None
 
-
-    def seed(self, seed=None):
-        self.np_random, seed = seeding.np_random(seed)
-        return [seed]
 
 
     def reset(self):
         self._done = False
+        self._get_start_end_tick()
         self._current_tick = self._start_tick
         
         self.wallet = Wallet(self.init_money)
         self.total_reward = 0.
         self.total_profit = 0 
         self.percentage_profit = 0  
-        self._first_rendering = True
         self.history = {}
         return self._get_observation()
 
@@ -153,7 +167,7 @@ class TradingEnv(gym.Env):
         self._done = False
         self._current_tick += 1
 
-        if self._current_tick == self._end_tick or self.wallet.unrealized_pl <= -self.wallet.cash_balance:
+        if self._current_tick == self._end_tick or self.wallet.total_balance <= 0:
             self._done = True
             predict = Positions.Sideways
             n_contract = 0
@@ -214,6 +228,15 @@ class TradingEnv(gym.Env):
         plt.show()
 
 
+    def _get_start_end_tick(self):
+        if self.trade_time == None:
+            self._start_tick = self.window_size
+            self._end_tick = len(self.prices) - 1
+        else:
+            self._start_tick = np.random.randint(self.window_size, self.df.shape[0]-self.trade_time)
+            self._end_tick = self._start_tick + self.trade_time
+         
+
     def _get_observation(self):
         return self.signal_features[(self._current_tick-self.window_size):self._current_tick]
 
@@ -236,6 +259,11 @@ class TradingEnv(gym.Env):
         plt.savefig(filepath)
 
 
+    def seed(self, seed=None):
+        self.np_random, seed = seeding.np_random(seed)
+        return [seed]
+
+
     def _process_data(self):
         raise NotImplementedError
 
@@ -244,5 +272,5 @@ class TradingEnv(gym.Env):
         raise NotImplementedError
 
 
-    def max_possible_profit(self):  # trade fees are ignored
+    def max_possible_profit(self): 
         raise NotImplementedError
